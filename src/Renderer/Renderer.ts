@@ -8,11 +8,14 @@ export class Renderer {
     private canvasContext!: GPUCanvasContext
     private renderPassDescriptor!: GPURenderPassDescriptor
 
+    // Buffers
+    private vertexBuffer!: GPUBuffer
+
     public async start() {
         await this.initCanvas()
         this.initPipeline()
         this.initRenderPassDescriptor()
-        this.render()
+        this.startAnimation(120)
     }
 
     private async initCanvas() {
@@ -42,6 +45,7 @@ export class Renderer {
     }
 
     private initPipeline() {
+        const renderer: Renderer = this
         const module = this.device.createShaderModule({
             label: "Test shader",
             code: testShader,
@@ -53,6 +57,14 @@ export class Renderer {
             vertex: { module },
             fragment: { module, targets: [{ format: this.presentationFormat }] },
         })
+
+        function initBuffers() {
+            renderer.vertexBuffer = renderer.device.createBuffer({
+                label: "Vertex Buffer",
+                size: 3 * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+        }
     }
 
     private initRenderPassDescriptor() {
@@ -64,6 +76,23 @@ export class Renderer {
                 storeOp: "store",
                 clearValue: [0, 0, 0, 0],
             }]
+        }
+    }
+
+    private startAnimation(targetFps: number) {
+        let prev = new Date()
+        const renderer: Renderer = this
+        animate()
+
+        function animate() {
+            const cur = new Date()
+            const targetMs = 1000 / targetFps
+            if (cur.getTime() - prev.getTime() >= targetMs) {
+                renderer.render()
+                prev = cur
+            }
+
+            requestAnimationFrame(animate)
         }
     }
 

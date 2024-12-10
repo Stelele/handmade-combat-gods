@@ -1,4 +1,6 @@
 export const testShader = /*wgsl*/`
+    @group(0) @binding(0) var<storage, read> vertices: array<vec4f>; 
+
     @vertex
     fn vs(@builtin(vertex_index) idx: u32) -> @builtin(position) vec4f {
         var points: array<vec4f, 3> = array(
