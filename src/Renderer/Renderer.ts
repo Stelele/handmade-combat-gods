@@ -4,16 +4,23 @@ import { testShader } from "./shaders/test.shader"
 export class Renderer {
     private device!: GPUDevice
     private presentationFormat!: GPUTextureFormat
-    private pipeline!: GPURenderPipeline
     private canvasContext!: GPUCanvasContext
-    private renderPassDescriptor!: GPURenderPassDescriptor
 
     // Buffers
     private vertexBuffer!: GPUBuffer
+    private shapePropsBuffer!: GPUBuffer
+
+    // pipeline and bind groups
+    private pipeline!: GPURenderPipeline
+    private bindGroup!: GPUBindGroup
+
+    // rendering
+    private renderPassDescriptor!: GPURenderPassDescriptor
 
     public async start() {
         await this.initCanvas()
         this.initPipeline()
+        this.loadData()
         this.initRenderPassDescriptor()
         this.startAnimation(120)
     }
@@ -45,26 +52,58 @@ export class Renderer {
     }
 
     private initPipeline() {
-        const renderer: Renderer = this
         const module = this.device.createShaderModule({
             label: "Test shader",
             code: testShader,
         })
-
         this.pipeline = this.device.createRenderPipeline({
             label: "Render Pipeline",
             layout: "auto",
             vertex: { module },
             fragment: { module, targets: [{ format: this.presentationFormat }] },
         })
+    }
 
-        function initBuffers() {
-            renderer.vertexBuffer = renderer.device.createBuffer({
-                label: "Vertex Buffer",
-                size: 3 * 4,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            })
+    private loadData() {
+        const points = new Float32Array([
+            0, 0.5, 0, 1,
+            -0.5, -0.5, 0, 1,
+            0.5, -0.5, 0, 1,
+        ])
+
+        const props = new Float32Array(4)
+        //set color
+        props.set([1, 0, 0, 1], 0)
+
+        if (this.vertexBuffer) {
+            this.vertexBuffer.destroy()
         }
+        if (this.shapePropsBuffer) {
+            this.shapePropsBuffer.destroy()
+        }
+
+        this.vertexBuffer = this.device.createBuffer({
+            label: "Vertex Buffer",
+            size: points.byteLength,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        })
+        this.device.queue.writeBuffer(this.vertexBuffer, 0, points)
+
+        this.shapePropsBuffer = this.device.createBuffer({
+            label: "Shape Props Buffer",
+            size: props.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        })
+        this.device.queue.writeBuffer(this.shapePropsBuffer, 0, props)
+
+        this.bindGroup = this.device.createBindGroup({
+            label: "Bind Group",
+            layout: this.pipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: { buffer: this.vertexBuffer } },
+                { binding: 1, resource: { buffer: this.shapePropsBuffer } }
+            ]
+        })
     }
 
     private initRenderPassDescriptor() {
@@ -108,8 +147,9 @@ export class Renderer {
         const pass = encoder.beginRenderPass(this.renderPassDescriptor)
 
         pass.setPipeline(this.pipeline)
+        pass.setBindGroup(0, this.bindGroup)
 
-        pass.draw(3)
+        pass.draw(this.vertexBuffer.size / 4)
         pass.end()
 
         this.device.queue.submit([encoder.finish()])
