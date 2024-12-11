@@ -1,5 +1,6 @@
 import { resizeCanvas } from "../helpers/resizeCanvas"
 import { testShader } from "./shaders/test.shader"
+import { IObject } from "./types/Object"
 
 export class Renderer {
     private device!: GPUDevice
@@ -7,20 +8,27 @@ export class Renderer {
     private canvasContext!: GPUCanvasContext
 
     // Buffers
-    private vertexBuffer!: GPUBuffer
-    private shapePropsBuffer!: GPUBuffer
+    private propsBuffer!: GPUBuffer
+    private readonly PROPS_BUFFER_ENTRY_SIZE = 4 * 8
+    private metaPropsBuffer!: GPUBuffer
 
     // pipeline and bind groups
     private pipeline!: GPURenderPipeline
     private bindGroup!: GPUBindGroup
+    private bindGroupLayout!: GPUBindGroupLayout
 
     // rendering
     private renderPassDescriptor!: GPURenderPassDescriptor
 
+    // objects
+    private objects: IObject[] = []
+
+
     public async start() {
         await this.initCanvas()
         this.initPipeline()
-        this.loadData()
+        this.initSpecialBuffers()
+        this.loadObjects([])
         this.initRenderPassDescriptor()
         this.startAnimation(120)
     }
@@ -56,52 +64,77 @@ export class Renderer {
             label: "Test shader",
             code: testShader,
         })
+
+        this.bindGroupLayout = this.device.createBindGroupLayout({
+            label: "Bind Group Layout",
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: "read-only-storage" },
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                    buffer: { type: "uniform" },
+                }
+            ]
+        })
+        const pipeLineLayout = this.device.createPipelineLayout({
+            label: "Pipeline Layout",
+            bindGroupLayouts: [this.bindGroupLayout]
+        })
+
         this.pipeline = this.device.createRenderPipeline({
             label: "Render Pipeline",
-            layout: "auto",
+            layout: pipeLineLayout,
             vertex: { module },
             fragment: { module, targets: [{ format: this.presentationFormat }] },
         })
     }
 
-    private loadData() {
-        const points = new Float32Array([
-            0, 0.5, 0, 1,
-            -0.5, -0.5, 0, 1,
-            0.5, -0.5, 0, 1,
-        ])
+    public loadObjects(objects: IObject[]) {
+        this.objects = objects.sort((a, b) => a.vertices.length - b.vertices.length)
+    }
 
-        const props = new Float32Array(4)
-        //set color
-        props.set([1, 0, 0, 1], 0)
-
-        if (this.vertexBuffer) {
-            this.vertexBuffer.destroy()
-        }
-        if (this.shapePropsBuffer) {
-            this.shapePropsBuffer.destroy()
-        }
-
-        this.vertexBuffer = this.device.createBuffer({
-            label: "Vertex Buffer",
-            size: points.byteLength,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-        })
-        this.device.queue.writeBuffer(this.vertexBuffer, 0, points)
-
-        this.shapePropsBuffer = this.device.createBuffer({
-            label: "Shape Props Buffer",
-            size: props.byteLength,
+    private initSpecialBuffers() {
+        this.metaPropsBuffer = this.device.createBuffer({
+            label: "Meta Props Buffer",
+            size: 1 * 4,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         })
-        this.device.queue.writeBuffer(this.shapePropsBuffer, 0, props)
+    }
+
+    private loadData() {
+        if (!this.objects.length) return
+
+        const propsData: number[] = []
+        for (const obj of this.objects) {
+            for (let i = 0; i < obj.vertices.length; i += 4) {
+                propsData.push(
+                    ...obj.vertices.slice(i, i + 4),
+                    ...obj.color
+                )
+            }
+        }
+        const props = new Float32Array(propsData)
+
+        if (this.propsBuffer) {
+            this.propsBuffer.destroy()
+        }
+        this.propsBuffer = this.device.createBuffer({
+            label: "Vertex Buffer",
+            size: props.byteLength,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        })
+        this.device.queue.writeBuffer(this.propsBuffer, 0, props)
 
         this.bindGroup = this.device.createBindGroup({
             label: "Bind Group",
-            layout: this.pipeline.getBindGroupLayout(0),
+            layout: this.bindGroupLayout,
             entries: [
-                { binding: 0, resource: { buffer: this.vertexBuffer } },
-                { binding: 1, resource: { buffer: this.shapePropsBuffer } }
+                { binding: 0, resource: { buffer: this.propsBuffer } },
+                { binding: 1, resource: { buffer: this.metaPropsBuffer } },
             ]
         })
     }
@@ -121,13 +154,16 @@ export class Renderer {
     private startAnimation(targetFps: number) {
         let prev = new Date()
         const renderer: Renderer = this
+        let time = 0
         animate()
 
         function animate() {
             const cur = new Date()
             const targetMs = 1000 / targetFps
-            if (cur.getTime() - prev.getTime() >= targetMs) {
-                renderer.render()
+            const diff = cur.getTime() - prev.getTime()
+            if (diff >= targetMs) {
+                time += diff / 1000
+                renderer.render(time)
                 prev = cur
             }
 
@@ -135,7 +171,7 @@ export class Renderer {
         }
     }
 
-    private render() {
+    private render(time: number) {
         const canvasTexture = this.canvasContext.getCurrentTexture()
         for (const colorAttachment of this.renderPassDescriptor.colorAttachments) {
             if (colorAttachment) {
@@ -146,12 +182,17 @@ export class Renderer {
         const encoder = this.device.createCommandEncoder()
         const pass = encoder.beginRenderPass(this.renderPassDescriptor)
 
+        // update time
+        this.device.queue.writeBuffer(this.metaPropsBuffer, 0, new Float32Array([time]))
+
         pass.setPipeline(this.pipeline)
+
+        this.loadData()
         pass.setBindGroup(0, this.bindGroup)
+        pass.draw(this.propsBuffer.size / this.PROPS_BUFFER_ENTRY_SIZE)
 
-        pass.draw(this.vertexBuffer.size / 4)
+
         pass.end()
-
         this.device.queue.submit([encoder.finish()])
     }
 }
