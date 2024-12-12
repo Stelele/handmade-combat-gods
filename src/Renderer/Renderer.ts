@@ -8,8 +8,9 @@ export class Renderer {
     private canvasContext!: GPUCanvasContext
 
     // Buffers
-    private propsBuffer!: GPUBuffer
     private readonly PROPS_BUFFER_ENTRY_SIZE = 4 * 8
+    private propsBuffer!: GPUBuffer
+    private indexBuffer!: GPUBuffer
     private metaPropsBuffer!: GPUBuffer
 
     // pipeline and bind groups
@@ -77,6 +78,11 @@ export class Renderer {
                     binding: 1,
                     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
                     buffer: { type: "uniform" },
+                },
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: "read-only-storage" }
                 }
             ]
         })
@@ -109,6 +115,8 @@ export class Renderer {
         if (!this.objects.length) return
 
         const propsData: number[] = []
+        const propsIndexes: number[] = []
+        let startIndexPos = 0
         for (const obj of this.objects) {
             for (let i = 0; i < obj.vertices.length; i += 4) {
                 propsData.push(
@@ -117,8 +125,16 @@ export class Renderer {
                     ...obj.transformation,
                 )
             }
+
+            for (const index of obj.indexes) {
+                propsIndexes.push(startIndexPos + index)
+            }
+
+            startIndexPos += obj.indexes.length
         }
+
         const props = new Float32Array(propsData)
+        const indexes = new Uint32Array(propsIndexes)
 
         if (this.propsBuffer) {
             this.propsBuffer.destroy()
@@ -136,6 +152,7 @@ export class Renderer {
             entries: [
                 { binding: 0, resource: { buffer: this.propsBuffer } },
                 { binding: 1, resource: { buffer: this.metaPropsBuffer } },
+                { binding: 2, resource: { buffer: this.indexBuffer } }
             ]
         })
     }

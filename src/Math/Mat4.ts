@@ -114,4 +114,5 @@ export class Mat4 {
 
         return result
     }
+
 }

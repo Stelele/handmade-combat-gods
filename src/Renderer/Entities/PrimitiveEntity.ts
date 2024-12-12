@@ -5,6 +5,7 @@ import { RenderObject } from "../types/RenderObject";
 export class PrimitiveEntity implements RenderObject, Entity {
     public color: number[]
     public vertices: number[]
+    public indexes: number[]
 
     private get s() { return [this.sX, this.sY, this.sZ] }
     private get r() { return [this.rX, this.rY, this.rZ] }
@@ -33,6 +34,7 @@ export class PrimitiveEntity implements RenderObject, Entity {
     public constructor() {
         this.color = [0, 0, 0, 0]
         this.vertices = []
+        this.indexes = []
     }
 
     public scale(sX?: number, sY?: number, sZ?: number) {
@@ -69,30 +71,33 @@ export class PrimitiveEntity implements RenderObject, Entity {
             -mW, mH, 0, 1,
             mW, mH, 0, 1,
             -mW, -mH, 0, 1,
-
-            -mW, -mH, 0, 1,
             mW, -mH, 0, 1,
-            mW, mH, 0, 1,
         ]
+        this.indexes = [0, 1, 2, 2, 1, 3]
 
         return this
     }
 
     public circle(r: number, z: number) {
         const points: number[] = []
+        const indexes: number[] = []
 
         const max = 1000
         const dTheta = 2 * Math.PI / max
+        points.push(0, 0, 0, 1)
+
         for (let i = 0; i < max; i++) {
-            points.push(0, 0, 0, 1)
+            indexes.push(0)
 
             const x1 = r * Math.cos(dTheta * i)
             const y1 = r * Math.sin(dTheta * i)
             points.push(x1, y1, z, 1)
+            points.push(i)
 
             const x2 = r * Math.cos(dTheta * (i + 1))
             const y2 = r * Math.sin(dTheta * (i + 1))
             points.push(x2, y2, z, 1)
+            points.push(i + 1)
         }
 
         this.vertices = points
