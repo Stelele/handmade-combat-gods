@@ -30,8 +30,8 @@ export class Mat4 {
         const s = Math.sin(theta)
 
         return [
-            c, -s, 0, 0,
-            s, -c, 0, 0,
+            c, s, 0, 0,
+            -s, c, 0, 0,
             0, 0, 1, 0,
             0, 0, 0, 1
         ]
@@ -55,8 +55,8 @@ export class Mat4 {
 
         return [
             1, 0, 0, 0,
-            0, c, -s, 0,
-            0, s, c, 0,
+            0, c, s, 0,
+            0, -s, c, 0,
             0, 0, 0, 1
         ]
     }

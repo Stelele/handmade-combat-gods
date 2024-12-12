@@ -18,7 +18,7 @@ async function main() {
   setInterval(test, 200)
   function test() {
     theta += 0.1
-    obj2.rotation(0, 0, theta)
+    obj2.rotation(theta)
   }
 
   renderer.loadObjects([obj2, obj1])
