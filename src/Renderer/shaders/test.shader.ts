@@ -2,6 +2,7 @@ export const testShader = /*wgsl*/`
     struct Props {
         pos: vec4f,
         color: vec4f,
+        transformation: mat4x4f
     }
 
     struct MetaProps {
@@ -18,10 +19,9 @@ export const testShader = /*wgsl*/`
 
     @vertex
     fn vs(@builtin(vertex_index) idx: u32) -> VsOut {
-        let prop = props[idx];
         var vOut: VsOut;
-        vOut.pos = prop.pos;
-        vOut.color = prop.color;
+        vOut.pos = props[idx].pos * props[idx].transformation;
+        vOut.color = props[idx].color;
         return vOut;
     }
 

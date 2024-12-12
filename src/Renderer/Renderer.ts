@@ -1,6 +1,6 @@
 import { resizeCanvas } from "../helpers/resizeCanvas"
 import { testShader } from "./shaders/test.shader"
-import { IObject } from "./types/Object"
+import { RenderObject } from "./types/RenderObject"
 
 export class Renderer {
     private device!: GPUDevice
@@ -21,7 +21,7 @@ export class Renderer {
     private renderPassDescriptor!: GPURenderPassDescriptor
 
     // objects
-    private objects: IObject[] = []
+    private objects: RenderObject[] = []
 
 
     public async start() {
@@ -93,7 +93,7 @@ export class Renderer {
         })
     }
 
-    public loadObjects(objects: IObject[]) {
+    public loadObjects(objects: RenderObject[]) {
         this.objects = objects.sort((a, b) => a.vertices.length - b.vertices.length)
     }
 
@@ -113,7 +113,8 @@ export class Renderer {
             for (let i = 0; i < obj.vertices.length; i += 4) {
                 propsData.push(
                     ...obj.vertices.slice(i, i + 4),
-                    ...obj.color
+                    ...obj.color,
+                    ...obj.transformation,
                 )
             }
         }
