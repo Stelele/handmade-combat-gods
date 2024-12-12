@@ -17,7 +17,7 @@ async function main() {
       ]
     },
     {
-      color: [1, 0, 0, 1],
+      color: [0, 1, 0, 1],
       vertices: [
         0.5, 0.5, 0, 1,
         0.8, -0.5, 0, 1,
