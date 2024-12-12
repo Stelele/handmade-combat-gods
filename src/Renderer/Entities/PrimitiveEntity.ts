@@ -77,30 +77,4 @@ export class PrimitiveEntity implements RenderObject, Entity {
 
         return this
     }
-
-    public circle(r: number, z: number) {
-        const points: number[] = []
-        const indexes: number[] = []
-
-        const max = 1000
-        const dTheta = 2 * Math.PI / max
-        points.push(0, 0, 0, 1)
-
-        for (let i = 0; i < max; i++) {
-            indexes.push(0)
-
-            const x1 = r * Math.cos(dTheta * i)
-            const y1 = r * Math.sin(dTheta * i)
-            points.push(x1, y1, z, 1)
-            points.push(i)
-
-            const x2 = r * Math.cos(dTheta * (i + 1))
-            const y2 = r * Math.sin(dTheta * (i + 1))
-            points.push(x2, y2, z, 1)
-            points.push(i + 1)
-        }
-
-        this.vertices = points
-        return this
-    }
 }

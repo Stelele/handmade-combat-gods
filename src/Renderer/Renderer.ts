@@ -8,10 +8,10 @@ export class Renderer {
     private canvasContext!: GPUCanvasContext
 
     // Buffers
-    private readonly PROPS_BUFFER_ENTRY_SIZE = 4 * 8
     private propsBuffer!: GPUBuffer
-    private indexBuffer!: GPUBuffer
+    private vertexBuffer!: GPUBuffer
     private metaPropsBuffer!: GPUBuffer
+    private indexBuffer!: GPUBuffer
 
     // pipeline and bind groups
     private pipeline!: GPURenderPipeline
@@ -80,10 +80,15 @@ export class Renderer {
                     buffer: { type: "uniform" },
                 },
                 {
-                    binding: 0,
+                    binding: 2,
                     visibility: GPUShaderStage.VERTEX,
                     buffer: { type: "read-only-storage" }
-                }
+                },
+                {
+                    binding: 3,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: "read-only-storage" }
+                },
             ]
         })
         const pipeLineLayout = this.device.createPipelineLayout({
@@ -100,7 +105,7 @@ export class Renderer {
     }
 
     public loadObjects(objects: RenderObject[]) {
-        this.objects = objects.sort((a, b) => a.vertices.length - b.vertices.length)
+        this.objects = objects
     }
 
     private initSpecialBuffers() {
@@ -112,39 +117,59 @@ export class Renderer {
     }
 
     private loadData() {
-        if (!this.objects.length) return
+        if (!this.objects.length) return 0
 
         const propsData: number[] = []
-        const propsIndexes: number[] = []
-        let startIndexPos = 0
+        const vertexData: number[] = []
+        const indexData: number[] = []
+
         for (const obj of this.objects) {
-            for (let i = 0; i < obj.vertices.length; i += 4) {
-                propsData.push(
-                    ...obj.vertices.slice(i, i + 4),
-                    ...obj.color,
-                    ...obj.transformation,
-                )
+            for (const vertex of obj.vertices) {
+                vertexData.push(vertex)
             }
-
             for (const index of obj.indexes) {
-                propsIndexes.push(startIndexPos + index)
+                indexData.push(index)
             }
 
-            startIndexPos += obj.indexes.length
+            propsData.push(
+                ...obj.color,
+                ...obj.transformation,
+            )
         }
 
         const props = new Float32Array(propsData)
-        const indexes = new Uint32Array(propsIndexes)
+        const vertices = new Float32Array(vertexData)
+        const indexes = new Uint32Array(indexData)
 
-        if (this.propsBuffer) {
-            this.propsBuffer.destroy()
+        if (!this.propsBuffer || (this.propsBuffer && this.propsBuffer.size !== props.byteLength)) {
+            this.propsBuffer?.destroy()
+            this.propsBuffer = this.device.createBuffer({
+                label: "Props Buffer",
+                size: props.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            })
         }
-        this.propsBuffer = this.device.createBuffer({
-            label: "Vertex Buffer",
-            size: props.byteLength,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-        })
         this.device.queue.writeBuffer(this.propsBuffer, 0, props)
+
+        if (!this.vertexBuffer || (this.vertexBuffer && this.vertexBuffer.size !== vertices.byteLength)) {
+            this.vertexBuffer?.destroy()
+            this.vertexBuffer = this.device.createBuffer({
+                label: "Vertex Buffer",
+                size: vertices.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            })
+        }
+        this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices)
+
+        if (!this.indexBuffer || (this.indexBuffer.size !== indexes.byteLength)) {
+            this.indexBuffer?.destroy()
+            this.indexBuffer = this.device.createBuffer({
+                label: "Index Buffer",
+                size: indexes.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+        }
+        this.device.queue.writeBuffer(this.indexBuffer, 0, indexes)
 
         this.bindGroup = this.device.createBindGroup({
             label: "Bind Group",
@@ -152,7 +177,8 @@ export class Renderer {
             entries: [
                 { binding: 0, resource: { buffer: this.propsBuffer } },
                 { binding: 1, resource: { buffer: this.metaPropsBuffer } },
-                { binding: 2, resource: { buffer: this.indexBuffer } }
+                { binding: 2, resource: { buffer: this.vertexBuffer } },
+                { binding: 3, resource: { buffer: this.indexBuffer } }
             ]
         })
     }
@@ -207,7 +233,7 @@ export class Renderer {
 
         this.loadData()
         pass.setBindGroup(0, this.bindGroup)
-        pass.draw(this.propsBuffer.size / this.PROPS_BUFFER_ENTRY_SIZE)
+        pass.draw(6, this.objects.length)
 
 
         pass.end()

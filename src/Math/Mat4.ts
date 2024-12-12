@@ -10,10 +10,10 @@ export class Mat4 {
 
     public static transMat(x = 0, y = 0, z = 0) {
         return [
-            1, 0, 0, x,
-            0, 1, 0, y,
-            0, 0, 1, z,
-            0, 0, 0, 1,
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            x, y, z, 1,
         ]
     }
 
@@ -30,8 +30,8 @@ export class Mat4 {
         const s = Math.sin(theta)
 
         return [
-            c, s, 0, 0,
-            -s, -c, 0, 0,
+            c, -s, 0, 0,
+            s, -c, 0, 0,
             0, 0, 1, 0,
             0, 0, 0, 1
         ]
@@ -42,9 +42,9 @@ export class Mat4 {
         const s = Math.sin(theta)
 
         return [
-            c, 0, -s, 0,
+            c, 0, s, 0,
             0, 1, 0, 0,
-            s, 0, c, 0,
+            -s, 0, c, 0,
             0, 0, 0, 1
         ]
     }
@@ -55,8 +55,8 @@ export class Mat4 {
 
         return [
             1, 0, 0, 0,
-            0, c, s, 0,
-            0, -s, c, 0,
+            0, c, -s, 0,
+            0, s, c, 0,
             0, 0, 0, 1
         ]
     }

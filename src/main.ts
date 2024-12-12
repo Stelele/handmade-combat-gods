@@ -8,11 +8,18 @@ async function main() {
 
   const obj1 = new PrimitiveEntity()
     .fill([0.5, 0, 0.8, 1])
-    .circle(.25, 0)
+    .rect([0.25, 0.25])
   const obj2 = new PrimitiveEntity()
     .fill([0, 1, 0, 1])
     .rect([0.5, 0.5])
-  // .translate(0)
 
-  renderer.loadObjects([obj1, obj2])
+  let theta = 0
+
+  setInterval(test, 200)
+  function test() {
+    theta += 0.1
+    obj2.rotation(0, 0, theta)
+  }
+
+  renderer.loadObjects([obj2, obj1])
 }
