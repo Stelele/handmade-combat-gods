@@ -292,4 +292,8 @@ export class Mat4 {
 
         return dst
     }
+
+    public static lookAtMat(eye: number[], target: number[], up: number[]) {
+        return Mat4.inverseMat(Mat4.cameraAimMat(eye, target, up))
+    }
 }

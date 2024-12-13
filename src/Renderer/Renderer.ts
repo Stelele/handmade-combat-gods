@@ -1,4 +1,5 @@
 import { resizeCanvas } from "../helpers/resizeCanvas"
+import { CameraEntity } from "./Entities/CameraEntity"
 import { testShader } from "./shaders/test.shader"
 import { RenderObject } from "./types/RenderObject"
 
@@ -23,6 +24,7 @@ export class Renderer {
 
     // objects
     private objects: RenderObject[] = []
+    private camera!: CameraEntity
 
 
     public async start() {
@@ -109,11 +111,18 @@ export class Renderer {
     }
 
     private initSpecialBuffers() {
+        const data = new Float32Array(20)
+        data.set([0], 0)
+
+        this.camera = new CameraEntity()
+        data.set(this.camera.viewProjMat, 4)
+
         this.metaPropsBuffer = this.device.createBuffer({
             label: "Meta Props Buffer",
-            size: 1 * 4,
+            size: data.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         })
+        this.device.queue.writeBuffer(this.metaPropsBuffer, 0, data)
     }
 
     private loadData() {
@@ -226,8 +235,10 @@ export class Renderer {
         const encoder = this.device.createCommandEncoder()
         const pass = encoder.beginRenderPass(this.renderPassDescriptor)
 
-        // update time
-        this.device.queue.writeBuffer(this.metaPropsBuffer, 0, new Float32Array([time]))
+        const metaData = new Float32Array(20)
+        metaData.set([time], 0)
+        metaData.set(this.camera.viewProjMat, 4)
+        this.device.queue.writeBuffer(this.metaPropsBuffer, 0, metaData)
 
         pass.setPipeline(this.pipeline)
 

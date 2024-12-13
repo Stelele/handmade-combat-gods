@@ -5,7 +5,8 @@ export const testShader = /*wgsl*/`
     }
 
     struct MetaProps {
-        time: f32
+        time: f32,
+        viewProjMat: mat4x4f,
     }
 
     struct VsOut {
@@ -28,7 +29,7 @@ export const testShader = /*wgsl*/`
         let point = points[instanceIdx][index];
 
         var vOut: VsOut;
-        vOut.pos   = prop.transformation * point;
+        vOut.pos   = metaProps.viewProjMat * prop.transformation * point;
         vOut.color = prop.color;
         return vOut;
     }
